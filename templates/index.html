@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropertyVal - Market Analysis Tool</title>
+    <style>
+        :root {
+            --brand-main: #2563eb;
+            --brand-dark: #1e293b;
+            --success-glow: rgba(37, 99, 235, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            color: var(--brand-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .valuation-card {
+            background: white;
+            width: 100%;
+            max-width: 550px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header { text-align: center; margin-bottom: 32px; }
+        
+        .card-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--brand-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .tagline { color: #64748b; font-size: 14px; margin-top: 8px; }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .full-width { grid-column: span 2; }
+
+        .field-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #475569;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--brand-main);
+            box-shadow: 0 0 0 3px var(--success-glow);
+        }
+
+        .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--brand-main);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover { background: #1d4ed8; }
+
+        /* Valuation Result UI */
+        #valuationDisplay {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            border-left: 4px solid var(--brand-main);
+        }
+
+        .price-tag {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--brand-main);
+            margin: 10px 0;
+        }
+
+        .error-alert {
+            background: #fef2f2;
+            color: #b91c1c;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 20px;
+            display: none;
+            border: 1px solid #fee2e2;
+        }
+
+        #loader { display: none; text-align: center; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="valuation-card">
+        <div class="card-header">
+            <h1>🏢 PropertyVal Engine</h1>
+            <p class="tagline">Data-driven market estimation for residential assets</p>
+        </div>
+
+        <form id="priceForm">
+            <div class="input-grid">
+                <div class="full-width">
+                    <label class="field-label">Interior Area (Sq Ft)</label>
+                    <input type="number" id="sqft" name="square_feet" value="2200" required>
+                </div>
+
+                <div>
+                    <label class="field-label">Bedrooms</label>
+                    <input type="number" id="bed" name="bedrooms" value="3" required>
+                </div>
+
+                <div>
+                    <label class="field-label">Bathrooms</label>
+                    <input type="number" id="bath" name="bathrooms" step="0.5" value="2.5" required>
+                </div>
+
+                <div>
+                    <label class="field-label">Building Age</label>
+                    <input type="number" id="age" name="age_years" value="10" required>
+                </div>
+
+                <div>
+                    <label class="field-label">Garage Cap.</label>
+                    <input type="number" id="garage" name="garage_spaces" value="2" required>
+                </div>
+
+                <div class="full-width">
+                    <label class="field-label">Location Rating (1-10)</label>
+                    <input type="number" id="loc" name="location_score" value="8" required>
+                    <div class="hint">1: Developing Area | 10: Prime Location</div>
+                </div>
+            </div>
+
+            <button type="submit" class="action-btn">Generate Valuation Report</button>
+        </form>
+
+        <div id="loader">Processing market data...</div>
+
+        <div id="valuationDisplay">
+            <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Market Estimate</p>
+            <div class="price-tag" id="priceOutput">$0.00</div>
+        </div>
+
+        <div id="errorBox" class="error-alert"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('priceForm');
+        const display = document.getElementById('valuationDisplay');
+        const errBox = document.getElementById('errorBox');
+        const loader = document.getElementById('loader');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            // Reset UI
+            display.style.display = 'none';
+            errBox.style.display = 'none';
+            loader.style.display = 'block';
+
+            // Gather inputs
+            const payload = {
+                square_feet: parseFloat(document.getElementById('sqft').value),
+                bedrooms: parseInt(document.getElementById('bed').value),
+                bathrooms: parseFloat(document.getElementById('bath').value),
+                age_years: parseInt(document.getElementById('age').value),
+                garage_spaces: parseInt(document.getElementById('garage').value),
+                location_score: parseInt(document.getElementById('loc').value)
+            };
+
+            try {
+                // Pointing to new endpoint /estimate-price
+                const response = await fetch('/estimate-price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const json = await response.json();
+                loader.style.display = 'none';
+
+                if (json.status === 'success') {
+                    const price = json.data.valuation;
+                    document.getElementById('priceOutput').textContent = 
+                        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+                    display.style.display = 'block';
+                } else {
+                    errBox.textContent = json.message || "An unknown error occurred.";
+                    errBox.style.display = 'block';
+                }
+            } catch (error) {
+                loader.style.display = 'none';
+                errBox.textContent = "Could not communicate with the valuation server.";
+                errBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
